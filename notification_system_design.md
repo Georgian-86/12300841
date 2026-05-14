@@ -161,3 +161,37 @@ For the priority inbox, I built a custom sorting algorithm on the frontend (sinc
 
 **Handling new incoming notifications efficiently:**
 Instead of re-sorting the entire array every time a single new WebSocket notification arrives, we can just use an insertion sort approach. We find the correct index for the new notification based on its weight/timestamp and splice it into the array, then pop off the last item if the array exceeds $N$. This keeps the operation at O(N) instead of O(N log N).
+
+---
+
+## Stage 7 — API Verification
+
+To ensure the backend-to-frontend integration and the Next.js API proxies are functioning correctly, we verified the output of our local endpoints.
+
+**Example Response from `GET /api/notifications`:**
+```json
+{
+  "notifications": [
+    {
+      "ID": "fef2079e-4ade-4773-ad59-0d937090ae5e",
+      "Type": "Placement",
+      "Message": "Marvell Technology Inc. hiring",
+      "Timestamp": "2026-05-13 20:37:58"
+    },
+    {
+      "ID": "3ce3617f-eeb5-49db-9911-2297af832fd1",
+      "Type": "Result",
+      "Message": "internal",
+      "Timestamp": "2026-05-14 01:07:41"
+    },
+    {
+      "ID": "269301a5-9107-452d-9047-e8e80cc29c37",
+      "Type": "Result",
+      "Message": "mid-sem",
+      "Timestamp": "2026-05-13 23:07:24"
+    }
+  ]
+}
+```
+This confirms our server-side proxy is correctly handling the Bearer token authorization and formatting the response for the frontend components.
+
