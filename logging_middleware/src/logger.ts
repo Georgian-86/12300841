@@ -15,10 +15,10 @@ export async function Log(
   packageName: LogPackage,
   message: string
 ): Promise<void> {
-  const payload: LogPayload = {
+  const payload = {
     stack,
     level,
-    packageName,
+    package: packageName,
     message,
   };
 
