@@ -151,6 +151,10 @@ This way, a failed email doesn't stop the whole batch, and the database updates 
 
 ## Stage 6 — Priority Inbox Approach
 
+<img width="1746" height="942" alt="image" src="https://github.com/user-attachments/assets/131ba235-ebd8-44bd-a61b-58134ebda9b9" />
+<img width="1398" height="904" alt="image" src="https://github.com/user-attachments/assets/bec64dfd-0958-493c-8a44-11ab5b4818d1" />
+
+
 For the priority inbox, I built a custom sorting algorithm on the frontend (since the prompt said "DB query is not expected"). 
 
 **How it works:**
