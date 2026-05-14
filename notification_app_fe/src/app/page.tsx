@@ -1,149 +1,142 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { 
-  Container, 
-  Typography, 
-  Box, 
-  Tabs, 
-  Tab, 
-  Paper, 
-  List, 
-  ListItem, 
-  ListItemText, 
-  Chip, 
-  Pagination, 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem, 
-  Divider,
-  Button
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  Container, Typography, Box, Paper, List, ListItem,
+  ListItemText, Chip, Pagination, FormControl, InputLabel,
+  Select, MenuItem, Divider, CircularProgress, Alert, Tooltip,
 } from '@mui/material';
-import { fetchNotifications, fetchPriorityNotifications, markRead } from '@/services/api.service';
-import { Log } from '../../../logging_middleware/src/logger';
+import FiberNewIcon from '@mui/icons-material/FiberNew';
+import { fetchNotifications, Notification } from '@/services/api.service';
+import { useReadTracker } from '@/hooks/useReadTracker';
+import { Log } from '@/utils/logger';
 
-export default function Dashboard() {
-  const [tab, setTab] = useState(0);
-  const [notifications, setNotifications] = useState<any[]>([]);
+const LIMIT = 10;
+
+export default function AllNotificationsPage() {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [type, setType] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const { isRead, markAsRead } = useReadTracker();
 
-  const loadData = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      if (tab === 0) {
-        const res = await fetchNotifications(page, type);
-        setNotifications(res.data);
-        setTotal(res.pagination.total);
-      } else {
-        const res = await fetchPriorityNotifications();
-        setNotifications(res.data);
-        setTotal(res.data.length);
-      }
-      await Log('frontend', 'info', 'page', 'Dashboard data loaded');
-    } catch (err) {
-      await Log('frontend', 'error', 'page', 'Failed to load data');
+      await Log('frontend', 'info', 'page', `Loading all notifications page=${page} type=${filterType}`);
+      const res = await fetchNotifications(page, filterType, LIMIT);
+      const data = res.notifications || [];
+      setNotifications(data);
+      // Mark fetched notifications as read automatically when viewed
+      data.forEach(n => markAsRead(n.ID));
+      setTotal(data.length >= LIMIT ? page * LIMIT + 1 : (page - 1) * LIMIT + data.length);
+      await Log('frontend', 'info', 'page', `Loaded ${data.length} notifications`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err.message || 'Failed to load';
+      setError(msg);
+      await Log('frontend', 'error', 'page', `Failed: ${msg}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, filterType]);
 
-  useEffect(() => {
-    loadData();
-  }, [tab, page, type]);
+  useEffect(() => { load(); }, [load]);
 
-  const handleMarkRead = async (id: string) => {
-    await markRead(id);
-    loadData();
-  };
+  const typeColor = (t: string) =>
+    t === 'Placement' ? 'primary' : t === 'Result' ? 'secondary' : 'default';
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight="bold">
-          Notifications
+    <Container maxWidth="md" sx={{ mt: 4, mb: 8 }}>
+      {/* Page Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Typography variant="h5" fontWeight={700}>
+          All Notifications
         </Typography>
-        {tab === 0 && (
-          <FormControl sx={{ minWidth: 120 }}>
-            <InputLabel>Type</InputLabel>
-            <Select
-              value={type}
-              label="Type"
-              onChange={(e) => { setType(e.target.value); setPage(1); }}
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="Placement">Placement</MenuItem>
-              <MenuItem value="Result">Result</MenuItem>
-              <MenuItem value="Event">Event</MenuItem>
-            </Select>
-          </FormControl>
-        )}
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <InputLabel>Filter by Type</InputLabel>
+          <Select
+            value={filterType}
+            label="Filter by Type"
+            onChange={e => { setFilterType(e.target.value); setPage(1); }}
+          >
+            <MenuItem value="">All Types</MenuItem>
+            <MenuItem value="Placement">📋 Placement</MenuItem>
+            <MenuItem value="Result">📊 Result</MenuItem>
+            <MenuItem value="Event">🎉 Event</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-        <Tabs value={tab} onChange={(_, v) => { setTab(v); setPage(1); }}>
-          <Tab label="All Notifications" />
-          <Tab label="Priority Inbox" />
-        </Tabs>
-      </Box>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Paper elevation={2}>
-        <List>
-          {notifications.map((n, i) => (
-            <React.Fragment key={n.id}>
-              <ListItem 
-                sx={{ 
-                  bgcolor: n.is_read ? 'transparent' : 'rgba(144, 202, 249, 0.08)',
-                  transition: '0.3s',
-                  '&:hover': { bgcolor: 'rgba(144, 202, 249, 0.12)' }
-                }}
-                secondaryAction={
-                  !n.is_read && (
-                    <Button size="small" onClick={() => handleMarkRead(n.id)}>
-                      Mark Read
-                    </Button>
-                  )
-                }
-              >
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="subtitle1" fontWeight={n.is_read ? 400 : 700}>
-                        {n.message}
-                      </Typography>
-                      <Chip 
-                        label={n.type} 
-                        size="small" 
-                        color={n.type === 'Placement' ? 'primary' : n.type === 'Result' ? 'secondary' : 'default'}
-                      />
-                    </Box>
-                  }
-                  secondary={new Date(n.createdAt).toLocaleString()}
-                />
-              </ListItem>
-              {i < notifications.length - 1 && <Divider />}
-            </React.Fragment>
-          ))}
-          {notifications.length === 0 && (
-            <ListItem>
-              <ListItemText primary="No notifications found" sx={{ textAlign: 'center', color: 'text.secondary' }} />
-            </ListItem>
-          )}
-        </List>
-      </Paper>
-
-      {tab === 0 && total > 10 && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-          <Pagination 
-            count={Math.ceil(total / 10)} 
-            page={page} 
-            onChange={(_, v) => setPage(v)} 
-            color="primary" 
-          />
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+          <CircularProgress />
         </Box>
+      ) : (
+        <>
+          <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+            <List disablePadding>
+              {notifications.length === 0 ? (
+                <ListItem>
+                  <ListItemText
+                    primary="No notifications found."
+                    sx={{ textAlign: 'center', color: 'text.secondary', py: 4 }}
+                  />
+                </ListItem>
+              ) : notifications.map((n, i) => {
+                const wasNew = !isRead(n.ID);
+                return (
+                  <React.Fragment key={n.ID}>
+                    <ListItem
+                      sx={{
+                        py: 1.5, px: 2,
+                        bgcolor: wasNew ? 'rgba(144,202,249,0.08)' : 'transparent',
+                        transition: 'background 0.3s',
+                        '&:hover': { bgcolor: 'action.hover' },
+                      }}
+                    >
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            {wasNew && <FiberNewIcon color="primary" fontSize="small" />}
+                            <Chip label={n.Type} size="small" color={typeColor(n.Type) as any} />
+                            <Typography variant="body1" fontWeight={wasNew ? 600 : 400}>
+                              {n.Message}
+                            </Typography>
+                          </Box>
+                        }
+                        secondary={
+                          <Tooltip title={n.Timestamp}>
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(n.Timestamp).toLocaleString('en-IN')}
+                            </Typography>
+                          </Tooltip>
+                        }
+                      />
+                    </ListItem>
+                    {i < notifications.length - 1 && <Divider />}
+                  </React.Fragment>
+                );
+              })}
+            </List>
+          </Paper>
+
+          {total > LIMIT && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <Pagination
+                count={Math.ceil(total / LIMIT)}
+                page={page}
+                onChange={(_, v) => setPage(v)}
+                color="primary"
+                showFirstButton showLastButton
+              />
+            </Box>
+          )}
+        </>
       )}
     </Container>
   );

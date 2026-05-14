@@ -1,43 +1,36 @@
 import axios from 'axios';
-import { Log } from '../../../logging_middleware/src/logger';
+import { Log } from '@/utils/logger';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+export interface Notification {
+  ID: string;
+  Type: 'Placement' | 'Result' | 'Event';
+  Message: string;
+  Timestamp: string;
+}
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
+export interface NotificationsResponse {
+  notifications: Notification[];
+}
 
-export const fetchNotifications = async (page = 1, type = '', limit = 10) => {
+export const fetchNotifications = async (
+  page: number = 1,
+  notification_type: string = '',
+  limit: number = 10
+): Promise<NotificationsResponse> => {
   try {
-    await Log('frontend', 'info', 'api', `Fetching notifications page ${page}`);
-    const response = await api.get('/notifications', {
-      params: { page, type, limit }
+    await Log('frontend', 'info', 'api', `Fetching notifications page=${page} type=${notification_type}`);
+    const params: Record<string, any> = { page, limit };
+    if (notification_type) params.notification_type = notification_type;
+    
+    // Call the local Next.js proxy route to bypass CORS
+    const response = await axios.get(`/api/notifications`, {
+      params,
     });
+    
+    await Log('frontend', 'info', 'api', 'Notifications fetched successfully');
     return response.data;
   } catch (error: any) {
-    await Log('frontend', 'error', 'api', error.message);
-    throw error;
-  }
-};
-
-export const fetchPriorityNotifications = async () => {
-  try {
-    await Log('frontend', 'info', 'api', 'Fetching priority notifications');
-    const response = await api.get('/notifications/priority');
-    return response.data;
-  } catch (error: any) {
-    await Log('frontend', 'error', 'api', error.message);
-    throw error;
-  }
-};
-
-export const markRead = async (id: string) => {
-  try {
-    await Log('frontend', 'info', 'api', `Marking notification ${id} as read`);
-    const response = await api.patch(`/notifications/${id}/read`);
-    return response.data;
-  } catch (error: any) {
-    await Log('frontend', 'error', 'api', error.message);
+    await Log('frontend', 'error', 'api', `fetchNotifications failed: ${error.message}`);
     throw error;
   }
 };
