@@ -85,7 +85,7 @@ export default function PriorityInboxPage() {
           size="small"
           value={topN}
           onChange={e => setTopN(Math.max(1, Math.min(50, parseInt(e.target.value) || 10)))}
-          inputProps={{ min: 1, max: 50 }}
+          slotProps={{ htmlInput: { min: 1, max: 50 } }}
           sx={{ width: 130 }}
         />
         <FormControl size="small" sx={{ minWidth: 160 }}>
